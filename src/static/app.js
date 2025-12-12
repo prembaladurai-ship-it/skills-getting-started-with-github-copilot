@@ -4,6 +4,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
+  // Helper: safely produce initials from a name/email
+  function getInitials(text) {
+    if (!text) return "";
+    // prefer name-like parts first; handle emails
+    const t = String(text);
+    const beforeAt = t.split("@")[0];
+    const words = beforeAt.split(/[\s._-]+/).filter(Boolean);
+    if (words.length === 0) return t.slice(0, 2).toUpperCase();
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
@@ -12,6 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+
+      // Clear existing options except the placeholder
+      Array.from(activitySelect.options).forEach((opt) => {
+        if (opt.value !== "") {
+          opt.remove();
+        }
+      });
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -27,6 +46,47 @@ document.addEventListener("DOMContentLoaded", () => {
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
         `;
 
+        // Participants section
+        const participantsContainer = document.createElement("div");
+        participantsContainer.className = "participants";
+
+        const participantsHeader = document.createElement("h5");
+        participantsHeader.textContent = "Participants";
+        participantsContainer.appendChild(participantsHeader);
+
+        if (!details.participants || details.participants.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "participants-empty";
+          empty.textContent = "No participants yet — be the first!";
+          participantsContainer.appendChild(empty);
+        } else {
+          const list = document.createElement("ul");
+          list.className = "participant-list";
+          details.participants.forEach((p) => {
+            // Support participant string or object
+            const participantText =
+              typeof p === "string" ? p : p.name || p.email || JSON.stringify(p);
+
+            const li = document.createElement("li");
+            li.className = "participant-item";
+
+            const badge = document.createElement("span");
+            badge.className = "participant-badge";
+            badge.textContent = getInitials(participantText);
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "participant-name";
+            nameSpan.textContent = participantText;
+
+            li.appendChild(badge);
+            li.appendChild(nameSpan);
+            list.appendChild(li);
+          });
+
+          participantsContainer.appendChild(list);
+        }
+
+        activityCard.appendChild(participantsContainer);
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
