@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Availability:</strong> <span class="spots-left">${spotsLeft}</span> spots left</p>
         `;
 
         // Participants section
@@ -80,6 +80,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
             li.appendChild(badge);
             li.appendChild(nameSpan);
+
+            // Add delete/unregister button for each participant
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "participant-delete";
+            deleteBtn.title = "Unregister participant";
+            deleteBtn.setAttribute("aria-label", `Unregister ${participantText}`);
+            deleteBtn.textContent = "✖";
+
+            // Handle click to unregister participant
+            deleteBtn.addEventListener("click", async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!confirm(`Unregister ${participantText} from ${name}?`)) return;
+
+              try {
+                const resp = await fetch(
+                  `/activities/${encodeURIComponent(name)}/unregister?email=${encodeURIComponent(
+                    participantText
+                  )}`,
+                  { method: "DELETE" }
+                );
+
+                const json = await resp.json();
+                if (resp.ok) {
+                  // Remove the element from the DOM
+                  li.remove();
+
+                  // Update spots left count in the card
+                  const spotsEl = activityCard.querySelector(".spots-left");
+                  if (spotsEl) {
+                    const newVal = parseInt(spotsEl.textContent, 10) + 1;
+                    spotsEl.textContent = newVal;
+                  }
+
+                  // If list now empty, show empty message
+                  if (list.children.length === 0) {
+                    const empty = document.createElement("p");
+                    empty.className = "participants-empty";
+                    empty.textContent = "No participants yet — be the first!";
+                    participantsContainer.replaceChild(empty, list);
+                  }
+                } else {
+                  messageDiv.textContent = json.detail || "Failed to unregister";
+                  messageDiv.className = "error";
+                  messageDiv.classList.remove("hidden");
+                  setTimeout(() => messageDiv.classList.add("hidden"), 5000);
+                }
+              } catch (err) {
+                console.error("Error unregistering:", err);
+                messageDiv.textContent = "Failed to unregister. Please try again.";
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                setTimeout(() => messageDiv.classList.add("hidden"), 5000);
+              }
+            });
+
+            li.appendChild(deleteBtn);
             list.appendChild(li);
           });
 
